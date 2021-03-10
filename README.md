@@ -1,4 +1,4 @@
-### Real World Project: Database Shard
+# Real World Project: Database Shard
 ```
 This project uses latest version of MariaDB MaxScale on the latest version of Ubuntu.
 ```
