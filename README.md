@@ -1,131 +1,177 @@
-# MariaDB MaxScale Docker image
-
-This Docker image runs the latest 2.4 version of MariaDB MaxScale.
-
--	[Travis CI:  
-	![build status badge](https://img.shields.io/travis/mariadb-corporation/maxscale-docker/master.svg)](https://travis-ci.org/mariadb-corporation/maxscale-docker/branches)
-
-
-## Building
-
-Run the following command in this directory to build the image.
-
+### Real World Project: Database Shard
 ```
-make build-image
+This project uses latest version of MariaDB MaxScale on the latest version of Ubuntu.
 ```
 
-## Running
-To pull the latest MaxScale image from docker hub:
-```
-docker pull mariadb/maxscale:latest
-```
+## The Pre-requisites:
 
-To run the MaxScale container overriding the container instance name to 'mxs':
-```
-docker run -d --name mxs mariadb/maxscale:latest
-```
-
-Read on for details of how to configure the MaxScale container.
-
-## Configuration
-The default configuration for the container is fairly minimalist and can be found in [this configuration file](./maxscale.cnf). At a high level the following is enabled:
-- REST API with default user and password (admin / mariadb) listening to all hosts (0.0.0.0)
-
-### Configure via REST API
-The REST API by default listens on port 8989. To interact with this from the docker host, requires a port mapping to specified on container startup. The example below shows listing the current services via curl:
-```
-docker run -d -p 8989:8989 --name mxs mariadb/maxscale:latest
-curl -u admin:mariadb -H "Content-Type: application/json" http://localhost:8989/v1/services
+Have PC or VM running current version of Ubuntu. *You can install an earlier version and update later if unable to grab latest version*
 
 ```
-### Configure via maxscale.cnf File
-An alternative model is to provide an overlay maxscale.cnf file that provides additional configuration for the cluster to be managed. To do this, you must mount your configuration file into `/etc/maxscale.cnf.d/`. When running the container with docker directly pass this using the argument to the `-v` option:
+Install Docker 
+Docker Compose 
+Mariadb
 
 ```
-docker run -d --name mxs -v $PWD/my-maxscale.cnf:/etc/maxscale.cnf.d/my-maxscale.cnf mariadb/maxscale:2.2
+
+## To install Docker on VM or PC:
+
+#Commands used in terminal:
+```
+sudo apt update *This command will update to the latest version of the OS (refrence to the Pre-requisites above ^)
+sudo apt install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+
+sudo apt install docker-ce
+```
+## Next we will confirm Docker Status with:
+```
+sudo systemctl status docker
 ```
 
-## MaxScale docker-compose setup
+## Installing Docker Compose:
+```
+sudo apt install docker-compose
+```
 
-[The MaxScale docker-compose setup](./docker-compose.yml) contains MaxScale
-configured with a three node master-slave cluster. To start it, run the
-following commands in this directory.
+## To install Mariadb:
+```
+sudo apt install mariadb-client
+```
+
+## Cloning the repository:
+Next we will be grabbing the repository from Git-Hub by running:
+```
+git clone https://github.com/ThaHolyPaladin/maxscale-docker
+```
+
+## Changing directories:
+Once you grab the respository from Git-Hub we will change into the new directory by:
 
 ```
-docker-compose build
+cd maxscale-docker/maxscale/
+```
+
+## Bringing up the containers:
+
+We will then input the command to bring up the containers to confirm the git clone was sucessfull 
+```
+docker-compose up -d
+```
+## Confirm that the three containers imported correctly as shown:
+```
 docker-compose up -d
 ```
 
-After MaxScale and the servers have started (takes a few minutes), you can find
-the readwritesplit router on port 4006 and the readconnroute on port 4008. The
-user `maxuser` with the password `maxpwd` can be used to test the cluster.
-Assuming the mariadb client is installed on the host machine:
 ```
-$ mysql -umaxuser -pmaxpwd -h 127.0.0.1 -P 4006 test
+maxscale_master2_1    docker-entrypoint.sh mysql ...   Up      0.0.0.0:4003->3306/tcp                                  
+maxscale_master_1     docker-entrypoint.sh mysql ...   Up      0.0.0.0:4001->3306/tcp                                  
+maxscale_maxscale_1   /usr/bin/tini -- docker-en ...   Up      3306/tcp, 0.0.0.0:4000->4000/tcp, 0.0.0.0:8989->8989/tcp
+```
+
+## Running Containers:
+We will then confirm that they are running by using the command:
+
+```
+docker-compose exec maxscale maxctrl list servers
+```
+Which will bring up
+
+```
+┌────────────────┬─────────┬──────┬─────────────┬─────────────────┬───────────┐
+│ Server         │ Address │ Port │ Connections │ State           │ GTID      │
+├────────────────┼─────────┼──────┼─────────────┼─────────────────┼───────────┤
+│ zip_master_one │ master  │ 3306 │ 0           │ Master, Running │ 0-3000-32 │
+├────────────────┼─────────┼──────┼─────────────┼─────────────────┼───────────┤
+│ zip_master_two │ master2 │ 3306 │ 0           │ Running         │ 0-3000-31 │
+└────────────────┴─────────┴──────┴─────────────┴─────────────────┴───────────┘
+```
+
+## Logging in to Database
+
+Now that we can see the zip masters running we will now log into the database with:
+
+```
+mariadb -umaxuser -pmaxpwd -h 127.0.0.1 -P 4000
+```
+
+You will then be logged in and be prompted with
+
+```
 Welcome to the MariaDB monitor.  Commands end with ; or \g.
-Your MySQL connection id is 5
-Server version: 10.2.12 2.2.9-maxscale mariadb.org binary distribution
+Your MariaDB connection id is 1
+Server version: 10.5.8-MariaDB-1:10.5.8+maria~focal-log mariadb.org binary distribution
 
 Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
 
 Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
 
-MySQL [test]>
-```
-You can edit the [`maxscale.cnf.d/example.cnf`](./maxscale.cnf.d/example.cnf)
-file and recreate the MaxScale container to change the configuration.
-
-To stop the containers, execute the following command. Optionally, use the -v
-flag to also remove the volumes.
-
-To run maxctrl in the container to see the status of the cluster:
-```
-$ docker-compose exec maxscale maxctrl list servers
-┌─────────┬─────────┬──────┬─────────────┬─────────────────┬──────────┐
-│ Server  │ Address │ Port │ Connections │ State           │ GTID     │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼──────────┤
-│ server1 │ master  │ 3306 │ 0           │ Master, Running │ 0-3000-5 │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼──────────┤
-│ server2 │ slave1  │ 3306 │ 0           │ Slave, Running  │ 0-3000-5 │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼──────────┤
-│ server3 │ slave2  │ 3306 │ 0           │ Running         │ 0-3000-5 │
-└─────────┴─────────┴──────┴─────────────┴─────────────────┴──────────┘
-
+MariaDB [(none)]> 
 ```
 
-The cluster is configured to utilize automatic failover. To illustrate this you can stop the master
-container and watch for maxscale to failover to one of the original slaves and then show it rejoining
-after recovery:
-```
-$ docker-compose stop master
-Stopping maxscaledocker_master_1 ... done
-$ docker-compose exec maxscale maxctrl list servers
-┌─────────┬─────────┬──────┬─────────────┬─────────────────┬─────────────┐
-│ Server  │ Address │ Port │ Connections │ State           │ GTID        │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server1 │ master  │ 3306 │ 0           │ Down            │ 0-3000-5    │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server2 │ slave1  │ 3306 │ 0           │ Master, Running │ 0-3001-7127 │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server3 │ slave2  │ 3306 │ 0           │ Slave, Running  │ 0-3001-7127 │
-└─────────┴─────────┴──────┴─────────────┴─────────────────┴─────────────┘
-$ docker-compose start master
-Starting master ... done
-$ docker-compose exec maxscale maxctrl list servers
-┌─────────┬─────────┬──────┬─────────────┬─────────────────┬─────────────┐
-│ Server  │ Address │ Port │ Connections │ State           │ GTID        │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server1 │ master  │ 3306 │ 0           │ Slave, Running  │ 0-3001-7127 │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server2 │ slave1  │ 3306 │ 0           │ Master, Running │ 0-3001-7127 │
-├─────────┼─────────┼──────┼─────────────┼─────────────────┼─────────────┤
-│ server3 │ slave2  │ 3306 │ 0           │ Slave, Running  │ 0-3001-7127 │
-└─────────┴─────────┴──────┴─────────────┴─────────────────┴─────────────┘
+## Commands to run while in database
+
+Now that we are in we want to confirm that the information is there with:
 
 ```
+show databases;
+```
 
-Once complete, to remove the cluster and maxscale containers:
+This will bring up the databases in the mariadb
+
+```
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| zipcodes_one       |
+| zipcodes_two       |
++--------------------+
+```
+
+# From there we will select the zipcode one and show the last 10 of zipcode one data:
+
+```
+SELECT * FROM zipcodes_one.zipcodes_one LIMIT 9990,10;
+```
+
+while ```SELECT * FROM zipcodes_two.zipcodes_two LIMIT 10;```
+
+will show the first 10 rows from zipcode two. 
+
+## Viewing the largest and smallest zipcode:
+
+Now that we can organize the data we will then find out the largest zipcode from zipcode one by using 
+
+```
+SELECT Zipcode FROM zipcodes_one.zipcodes_one ORDER BY Zipcode DESC LIMIT 1;
+```
+
+# And vice versa we will find the smallest from zipcode two with:
+
+```
+SELECT Zipcode FROM zipcodes_two.zipcodes_two ORDER BY Zipcode ASC LIMIT 1;
+```
+
+### Now that we are all finished we will remove the clusters and containers with:
 
 ```
 docker-compose down -v
 ```
+
+### Sources used:
+
+(https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-18-04)
+
+(https://docs.docker.com/compose/install/)
+
+(https://mariadb.com/kb/en/mariadb-maxscale-25-simple-sharding-with-two-servers/)
+
+https://docs.docker.com/engine/install/ubuntu/
+
+https://www.digitalocean.com/community/tutorials/how-to-remove-docker-images-containers-and-volumes
+
