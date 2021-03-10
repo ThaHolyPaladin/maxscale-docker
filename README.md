@@ -133,7 +133,7 @@ MariaDB [(none)]> show databases;
 +--------------------+
 ```
 
-# From there we will select the zipcode one and show the last 10 of zipcode one data:
+## From there we will select the zipcode one and show the last 10 of zipcode one data:
 
 ```
 SELECT * FROM zipcodes_one.zipcodes_one LIMIT 9990,10;
@@ -151,7 +151,7 @@ Now that we can organize the data we will then find out the largest zipcode from
 SELECT Zipcode FROM zipcodes_one.zipcodes_one ORDER BY Zipcode DESC LIMIT 1;
 ```
 
-# And vice versa we will find the smallest from zipcode two with:
+## And vice versa we will find the smallest from zipcode two with:
 
 ```
 SELECT Zipcode FROM zipcodes_two.zipcodes_two ORDER BY Zipcode ASC LIMIT 1;
